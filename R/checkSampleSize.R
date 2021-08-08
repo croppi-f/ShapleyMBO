@@ -1,0 +1,59 @@
+################################################################################
+#####################   checkSampleSize   ######################################
+################################################################################
+#- this function is used to check if the sample size used in ShapleyMBO is sufficiently
+#  high
+#- Idea: the efficiency error (gap) caused by the approximation is used as condition for 
+#  an appropriate sample size. If the gap is smaller than the minimum absolute difference (L1 distance) 
+#  between the Shapley Values (threshold) then the sample size is high enough.
+#- Choice of the threshold: in the most extreme case (worst case scenario) all the gap
+#  is distributed to one feature only, but if the gap is smaller than the 
+#  threshold, then distributing the gap to that feature feature will not change the 
+#  results (at least the order of the results).
+#- the uncertainty of the estimation is taken into considerations with confidence intervals
+
+checkSampleSize = function(shapley.mbo) {
+  # repeat the same steps for cb, mean and se: 
+  # Cb
+  # compute the contribution payout
+  payout.cb = unique(shapley.mbo$pred.interest_cb) - unique(shapley.mbo$pred.average_cb)
+  # compute the sum of the sv
+  sum.phi.cb = sum(shapley.mbo$phi_cb)
+  # compute the efficiency error (gap)
+  gap.cb = abs(sum.phi.cb - payout.cb)
+  # compute the minimum distance between the phi (threshold)
+  diffs.cb = outer(shapley.mbo$phi_cb, shapley.mbo$phi_cb, "-")
+  threshold.cb = min(
+    abs( 
+      diffs.cb[upper.tri(diffs.cb)]
+    )
+  )
+  # sample size check
+  check.cb = ifelse(gap.cb < threshold.cb, "TRUE", "FALSE")
+  
+  #Mean
+  payout.mean = unique(shapley.mbo$pred.interest_mean) - unique(shapley.mbo$pred.average_mean)
+  sum.phi.mean = sum(shapley.mbo$phi_mean)
+  gap.mean = abs(sum.phi.mean - payout.mean)
+  diffs.mean = outer(shapley.mbo$phi_mean, shapley.mbo$phi_mean, "-")
+  threshold.mean = min(
+    abs(
+      diffs.mean[upper.tri(diffs.mean)]
+    )
+  )
+  check.mean = ifelse(gap.mean < threshold.mean, "TRUE", "FALSE")
+  
+  #Se
+  payout.se = unique(shapley.mbo$pred.interest_se) - unique(shapley.mbo$pred.average_se)
+  sum.phi.se = sum(shapley.mbo$phi_se)
+  gap.se = abs(sum.phi.se - payout.se)
+  diffs.se = outer(shapley.mbo$phi_se, shapley.mbo$phi_se, "-")
+  threshold.se = min(
+    abs(
+      diffs.se[upper.tri(diffs.se)]
+    )
+  )
+  check.se = ifelse(gap.se < threshold.se, "TRUE", "FALSE")
+  
+  return(sprintf("sample size high enough for: cb %s, mean %s, se %s", check.cb, check.mean, check.se))
+}
