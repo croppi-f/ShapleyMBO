@@ -58,7 +58,7 @@ ShapleyMBO_mclapply = function(res.mbo,
   if (!(infill.mbo %in% c("mean", "se", "ei", "cb", "eqi", "aei", "adacb"))) 
     stop("ShapleyMBO only implemented for the seven built-in single obj. infill crits")
   if (infill.mbo != "cb")
-    warning("ShapleyMBO implemented bit not yet tested for infill criteria other than cb")
+    warning("ShapleyMBO implemented bit not yet tested in detail for infill criteria other than cb")
   
   # iter.interest
   checkmate::assertNumeric(iter.interest, lower = 1, upper = iters.mbo, any.missing = FALSE,

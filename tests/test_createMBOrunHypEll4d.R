@@ -2,7 +2,8 @@
 ######################### TEST ##############################################
 library(testthat)
 
-# we changed the last lines to check if things are correct
+# we change the last lines of createMBOrunHypEll4d to check if the method works correctly
+# (remore storing of object & create a result object instead)
 createMBOrunHypEll4d_testthat = function(lambda,
                                          run,
                                          opt = "focussearch", 
@@ -98,7 +99,7 @@ test_that("createMBOrunHypEll4d is reproducible", {
   
   expect_identical(lambda1, lambda1_rep2)
   
-})
+}) #passed
 
 test_that("different lambda have same obj.fun and init.des", {
   
@@ -114,7 +115,7 @@ test_that("different lambda have same obj.fun and init.des", {
   # second run
   expect_identical(lambda1[[2]][["init.des"]], lambda10[[2]][["init.des"]])
   
-})
+}) # passed
 
 test_that("all necessary surrogate models are stored - dob works correctly", {
   # bo is run with max.evals = 20. Therefore we expect to have in total 4 (20-16) iterations
@@ -124,4 +125,4 @@ test_that("all necessary surrogate models are stored - dob works correctly", {
   expect_identical(lambda1[[2]]$names.sm, as.character(1:5))
   expect_identical(lambda10[[1]]$names.sm, as.character(1:5))
   expect_identical(lambda10[[2]]$names.sm, as.character(1:5))
-})
+}) #passed

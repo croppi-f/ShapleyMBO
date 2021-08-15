@@ -1,3 +1,6 @@
+source("R/ShapleyMBO.R")
+source("R/Shapley_env/ShapleyMBO_env.R")
+source("R/ShapleyMBO_mclapply.R")
 ######################### ShapleyMBO ########################################
 ######################### TEST ##############################################
 library(testthat)
@@ -35,7 +38,7 @@ test_that("ShapleyMBO is reproducible", {
   S6 = ShapleyMBO(res.mbo = res, contribution = FALSE)
   expect_identical(S5, S6)
   
-})
+}) #passed
 
 test_that("stored and assertions on iter.interest in ShapleyMBO works correctly", {
   S1 = ShapleyMBO(res.mbo = res, seed = 1, iter.interest = 2)
@@ -59,7 +62,7 @@ test_that("stored and assertions on iter.interest in ShapleyMBO works correctly"
   expect_error(
     ShapleyMBO(res.mbo = res, seed = 1, iter.interest = 1:5)
   )
-})
+}) #passed
 
 test_that("Linearity Axiom works - cb: phi, pred.interest, pred.average", {
   # test e.g. for iter 2
@@ -114,7 +117,7 @@ test_that("Linearity Axiom works - cb: phi, pred.interest, pred.average", {
   expect_equal(S[,"pred.average"], mm * res_mean[, "pred.average"] - lambda * res_se[,"pred.average"])
   expect_equal(S[,"phi"], mm * res_mean[, "phi"] - lambda * res_se[,"phi"])
   
-})
+}) #passed
 
 test_that("Shapley objects have the same design for mean and se WITHIN iters", {
   S = ShapleyMBO_env(res.mbo = res, contribution = TRUE, seed = 123)
@@ -145,14 +148,17 @@ test_that("Shapley objects have the same design for mean and se WITHIN iters", {
     S$mean$`3`$.__enclos_env__$private$dataSample,
     S$se$`3`$.__enclos_env__$private$dataSample
   )
-})
+}) #passed
 
 test_that("Shapley objects have the setting for mean and se BETWEEN iters", {
+  # contribution = TRUE
   S = ShapleyMBO_env(res.mbo = res, contribution = TRUE, seed = 123)
   # here we can only test dataSample since as we explain different instances in each iteration
-  # dataDesign will differ nevertheless between iterations
+  # dataDesign will differ nevertheless between iterations (b/c different surrogate models are used,
+  # causing different predictions of the same instance)
+  
   # mean
-  #dataSample
+  # dataSample
   expect_identical(
       S$mean$`1`$.__enclos_env__$private$dataSample,
       S$mean$`2`$.__enclos_env__$private$dataSample
@@ -180,7 +186,7 @@ test_that("Shapley objects have the setting for mean and se BETWEEN iters", {
       S$se$`2`$.__enclos_env__$private$dataSample,
       S$se$`3`$.__enclos_env__$private$dataSample
   )
-  contribution = FALSE
+  # contribution = FALSE
   S2 = ShapleyMBO_env(res.mbo = res, contribution = FALSE, seed = 123)
   expect_identical(
     S2$`1`$.__enclos_env__$private$dataSample,
@@ -194,7 +200,7 @@ test_that("Shapley objects have the setting for mean and se BETWEEN iters", {
     S2$`2`$.__enclos_env__$private$dataSample,
     S2$`3`$.__enclos_env__$private$dataSample
   )
-})
+}) #passed
 
 test_that("utils_ShapleyMBO correct - ShapleyMBO gives same results with contribution TRUE and FALSE", {
   
@@ -210,7 +216,7 @@ test_that("utils_ShapleyMBO correct - ShapleyMBO gives same results with contrib
   df = S4[, c(1,2,16,17,3,14,15)]
   colnames(df) = colnames(S3)
   expect_equal(S3, df)
-})
+}) #passed
 
 test_that("ShapleyMBO explains the correct instances", {
   # contribution = TRUE
@@ -243,7 +249,7 @@ test_that("ShapleyMBO explains the correct instances", {
   expect_equal(explained1, x.interest1)
   expect_equal(explained2, x.interest2)
   expect_equal(explained3, x.interest3)
-})
+}) #passed
 
 test_that("ShapleyMBO and ShapleyMBO_mclapply give the same results", {
   S1 = ShapleyMBO(res.mbo = res, contribution = TRUE)
@@ -257,8 +263,7 @@ test_that("ShapleyMBO and ShapleyMBO_mclapply give the same results", {
   S5 = ShapleyMBO(res.mbo = res, contribution = FALSE)
   S6 = ShapleyMBO_mclapply(res.mbo = res, contribution = FALSE, no.cores = 3)
   expect_identical(S5, S6)
-})
-#- mm.mbo works correctly
+}) # passed
 
 
 

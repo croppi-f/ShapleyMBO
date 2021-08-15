@@ -2,15 +2,19 @@ source("R/utils_PredictorAf.R")
 #' @title Predictor object that contains the Acquisition Function of a MBO process
 #'
 #' @description
-#' `PredictorAf` is a extension / modification of iml package `Predictor`(inherits its behavior). It holds 
+#' `PredictorAf` has not been used in this project, but it is still provided as an additional resource
+#' for users that want to assess the overall desirability of parameters with Acquisition functions other 
+#' than the CB, for instance the EI. Tests for this method can be found at 
+#' \url{https://github.com/croppi-f/iMBO/tree/master/tests/testthat}. `PredictorAf` is a extension / modification of iml package `Predictor`(inherits its behavior). It holds 
 #' a `mlr` model (the surrogate model), the AF of a BO process and the candidate points to analyze.  
 #' So far, PredictorAf works for the seven built in SingleObjective AF of mlrMBO.
-#' PredictorAf is built on iml version ‘0.10.0’.Due to inherit, if latest versions of iml are released PredictorAf might generate errors. 
-#'
+#' PredictorAf is built on iml version ‘0.10.0’.Due to inherit, if latest versions of iml are released PredictorAf might generate errors.
+#' 
 #' @details
 #' -`PredictorAf` has been created for regression tasks. For classification tasks it is not tested.
 #' - `PredictorAf` class is created in a more general way, in order to be eventually compatible with other iml tools.
 #' -Please use it only in combination with the `mlrMBO` package.
+#' 
 #' @name PredictorAf
 #' @export
 PredictorAf = R6::R6Class("PredictorAf",
