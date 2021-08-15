@@ -3,10 +3,11 @@ source("R/Shapley_env/ShapleyAf_env.R")
 source("R/Shapley_env/ShapleyMean_env.R")
 source("R/Shapley_env/ShapleySe_env.R")
 source("R/PredictorAf.R")
+source("R/utils_PredictorAf.R")
 ###################################################### 
-#########       ShapleyAfMBO_env    ##################
+#########       ShapleyMBO_env    ##################
 ######################################################
-#-This function stores the environments, the entire Shapley objects 
+#- This function stores the environments (the iml Shapley objects)
 #- we do not construct the CB Shapley
 #- this function is used to test if setting the seed works and mean, se, and af 
 #  have the same dataDesign, sample of  the config.space etc. for the different
@@ -135,16 +136,3 @@ ShapleyMBO_env = function(res.mbo,
   }
   return(res)
 }
-
-################ Evaluations ######
- S = ShapleyMBO_env(res)
- identical(S$`1`$.__enclos_env__$private$dataDesign, S$`2`$.__enclos_env__$private$dataDesign)
-# S_contr = ShapleyMBO_env(res, contribution = TRUE)
-# dD_mean_iter1 = S$mean$`1`$.__enclos_env__$private$dataDesign
-# dD_mean_iter2 = S$mean$`2`$.__enclos_env__$private$dataDesign
-# dD_se_iter1 = S$se$`1`$.__enclos_env__$private$dataDesign
-# dD_se_iter2 = S$se$`2`$.__enclos_env__$private$dataDesign
-# identical(dD_mean_iter1, dD_se_iter1)
-# identical(dD_mean_iter2, dD_se_iter2)
-# # identical(dD_mean_iter1, dD_mean_iter2)
-# # identical(dD_se_iter1, dD_se_iter2)

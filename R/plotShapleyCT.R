@@ -1,10 +1,9 @@
+library(patchwork)
 ###################################################### 
 #########       plotShapleyCT        #################
 ###################################################### 
-library(patchwork)
-
-# this is a subfunction of plotShapleyMBO to display the results of 
-# ShapleyMBO contribution = TRUE
+# this is a subfunction of plotShapleyMBO to display the results
+# of ShapleyMBO when contribution = TRUE.
 
 plotShapleyCT = function(data, type, avg.phi, ci, ci.alpha, sample.size, lambda, decomp) {
   plot = switch(type,
@@ -24,7 +23,7 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
   data = data %>% tidyr::unite(f, feature.value, col = "feature.value", sep = "=", remove = TRUE)
   data = as.data.frame(data)
   
-  # determine the order of the features
+  # determine the order of the parameters
   order = forcats::fct_reorder(data$feature.value, data$phi_cb)
   lev = levels(order)
   
@@ -35,7 +34,7 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
           legend.position = "bottom"
     )
   
-  # reshaping the data to display the contribution plot used both in ci == TRUE and ci == FALSE
+  # reshaping the data to display the decomposition plot
   data.long = data %>% dplyr::select(iter, feature.value, mean = phi_mean, se = phi_se_scaled) %>%
     tidyr::pivot_longer(cols = c(mean, se), 
                         names_to = "contribution",
@@ -43,30 +42,34 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
                         values_to = "phi")
   
   if(ci == TRUE) {
-    # adding phi var to the data.long
+    # scaling variance of the (unscaled) se contributions
     data.long.ci = data %>% dplyr::select(iter, feature.value, mean = phi.var_mean, se = phi.var_se) %>%
-      dplyr::mutate(se = lambda ^ 2 * se) %>% # scale the variance with lambda square
+      dplyr::mutate(se = lambda ^ 2 * se) %>% # scale the variance of phi_se (not sclaed) with lambda^2 
       tidyr::pivot_longer(cols = c(mean, se), 
                           names_to = "contribution",
                           names_ptypes = list(contribution = factor()),
                           values_to = "phi.var")
+    #adding phi_var to the data.long set
     data.long.ci = dplyr::left_join(data.long, data.long.ci, by = c("iter", "feature.value", "contribution"))
+    # computing the range of the CI
     data.long.ci$phi.var = sqrt(data.long.ci$phi.var / sample.size)
     data.long.ci$range = data.long.ci$phi.var * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
-    # modify phi_mean, since bars are stacked on top of each other and if ci == TRUE
-    # y of geom_errorbar for phi_mean will not be centered correctly
     
+    #- since mean contr bar is stacked on top of se contr bar, adjust phi_mean in order
+    # to make it compatible with sd range, otherwise y of geom_errorbar for phi_mean will not be centered correctly
+    #- when m and se contributions have opposite signs the problem does not occur
+    #- if they do, phi_mean should be as "heigh" as phi_cb
     data$phi_mod = ifelse(sign(data$phi_mean) == sign(data$phi_se_scaled), data$phi_cb, data$phi_mean)
     data.mod.long = dplyr::select(data, iter, feature.value, se = phi_se_scaled, mean = phi_mean, phi_mod) %>%
       tidyr::pivot_longer(cols = c(mean, se), 
                           names_to = "contribution",
                           names_ptypes = list(contribution = factor()),
                           values_to = "phi")
-    # replace values of phi_mod & contribution = se, with their original values
+    # replace values of phi_mod where contribution = se with their original values
     # since phi_se_scaled is not affected by this problem (phi_se_scaled is the lower bar)
     data.mod.long[seq(2, nrow(data.mod.long), 2), "phi_mod"] = data.mod.long[seq(2, nrow(data.mod.long), 2), "phi"]
     
-    #bind data.long.ci and data.mod.long together
+    #bind data.long.ci and data.mod.long together and get final dat set for the plot
     data.long.ci = dplyr::left_join(data.mod.long, data.long.ci, by = c("iter", "feature.value", "contribution", "phi"))
     
     # contribution plot
@@ -80,6 +83,7 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
     if(decomp == 1) {plot = plot.contr + theme}
     if(decomp == 2) {
       # CB Plot
+      # compute the range for the ci
       data$phi.var_cb = sqrt(data$phi.var_cb / sample.size)
       data$range.cb = data$phi.var_cb * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
       
@@ -106,6 +110,7 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
     }
     if(decomp == 3) {
       # CB Plot
+      # compute the range for the ci
       data$phi.var_cb = sqrt(data$phi.var_cb / sample.size)
       data$range.cb = data$phi.var_cb * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
       plot.cb = ggplot(data = data, aes(y = phi_cb, x = forcats::fct_relevel(feature.value, lev))) +
@@ -117,6 +122,7 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
         labs(x = "", y = "phi (cb)",
              title = sprintf("Actual cb: %.4f\nAverage cb: %.4f",data$pred.interest_cb, data$pred.average_cb))
       # MEAN Plot
+      # compute the range for the ci
       data$phi.var_mean = sqrt(data$phi.var_mean / sample.size)
       data$range.mean = data$phi.var_mean * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
       plot.mean = ggplot(data = data, aes(y = phi_mean, x = forcats::fct_relevel(feature.value, lev))) +
@@ -128,8 +134,9 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
         labs(x = "", y = "phi (m)",
              title = sprintf("Actual mean: %.4f\nAverage mean: %.4f",data$pred.interest_mean, data$pred.average_mean))
       
-      # SE Plot
-      data$phi.var_se = sqrt(data$phi.var_se / sample.size) # scale the variance
+      # SE Plot (not scaled with lambda)
+      # compute the range for the ci
+      data$phi.var_se = sqrt(data$phi.var_se / sample.size) # here not scaled with lambda^2
       data$range.se = data$phi.var_se * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
       plot.se = ggplot(data = data, aes(y = phi_se, x = forcats::fct_relevel(feature.value, lev))) +
         geom_col(fill = "#999999") +
@@ -226,11 +233,12 @@ plotShapleyCT.bar = function(data, ci, ci.alpha, sample.size, lambda, decomp) {
   
   return(plot)
 }
+
 ###################################################### 
 #########   plotShapleyCT.line         ###############
 ###################################################### 
 plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, decomp) {
-  # determine the order of the features
+  # determine the order of the parameters
   order = forcats::fct_reorder(data$feature, data$phi_cb)
   
   # theme of the plot
@@ -240,7 +248,7 @@ plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, 
     )
   
   if(avg.phi == TRUE) {
-    # compute the average phi for all colums of interest
+    # compute the average phi for all the contributions
     avg.phi = data %>% dplyr::select(iter, feature, phi_mean, phi_se_scaled, phi_se, phi_cb) %>%
       dplyr::group_by(feature) %>% 
       dplyr::summarise(avg.mean = mean(phi_mean), avg.se_scaled = mean(phi_se_scaled), avg.se = mean(phi_se), avg.cb = mean(phi_cb))
@@ -307,10 +315,10 @@ plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, 
   }
   
   if(ci == TRUE) {
-    # compute the range for the error bars
+    # compute the range for the CI for contributions cb, mean and se
     data$phi.var_mean = sqrt(data$phi.var_mean / sample.size)
     data$range.mean = data$phi.var_mean * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
-    data$phi.var_se_scaled = sqrt(lambda ^ 2 * (data$phi.var_se / sample.size)) # scale the variance
+    data$phi.var_se_scaled = sqrt(lambda ^ 2 * (data$phi.var_se / sample.size)) # scale the variance with lambda^2 here
     data$range.se_scaled = data$phi.var_se_scaled * qt(1 - ci.alpha / 2, sample.size - 1)
     data$phi.var_cb = sqrt(data$phi.var_cb / sample.size)
     data$range.cb = data$phi.var_cb * qt(1 - ci.alpha / 2, sample.size - 1)
@@ -318,7 +326,6 @@ plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, 
     plot.cb = ggplot(data = data, aes(x = iter, y = phi_cb, group = feature, color = order)) +
       geom_hline(yintercept = 0, alpha = 0.5, linetype = "longdash") +
       geom_line() +
-      #geom_point() +
       geom_errorbar(aes(ymin = phi_cb - range.cb, ymax = phi_cb + range.cb)) +
       theme + 
       labs(x = "iter", y = "phi (cb)", color = "feature")
@@ -326,7 +333,6 @@ plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, 
     plot.mean = ggplot(data = data, aes(x = iter, y = phi_mean, group = feature, color = order)) +
       geom_hline(yintercept = 0, alpha = 0.5, linetype = "longdash") +
       geom_line() +
-      #geom_point() +
       geom_errorbar(aes(ymin = phi_mean - range.mean, ymax = phi_mean + range.mean)) +
       theme + 
       labs(x = "iter", y = "phi (m)", color = "feature")
@@ -334,12 +340,12 @@ plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, 
     plot.se = ggplot(data = data, aes(x = iter, y = phi_se_scaled, group = feature, color = order)) +
       geom_hline(yintercept = 0, alpha = 0.5, linetype = "longdash") +
       geom_line() +
-      #geom_point() +
       geom_errorbar(aes(ymin = phi_se_scaled - range.se_scaled, ymax = phi_se_scaled + range.se_scaled)) +
       theme + 
       labs(x = "iter", y = "phi (se)", color = "feature")
     
     if(decomp == 1) {
+      #same scale for all plots
       all.phi = c(data$phi_cb - data$range.cb, 
                   data$phi_cb + data$range.cb, 
                   data$phi_mean - data$range.mean, 
@@ -360,13 +366,12 @@ plotShapleyCT.line = function(data, avg.phi, ci, ci.alpha, sample.size, lambda, 
     }
     
     if(decomp == 3) {
-      data$phi.var_se = sqrt(data$phi.var_se / sample.size) # scale the variance
+      data$phi.var_se = sqrt(data$phi.var_se / sample.size) # here not sclaed with lambda^2
       data$range.se = data$phi.var_se * qt(1 - ci.alpha / 2, sample.size - 1)
       # Se Plot (not scaled)
       plot.se.not = ggplot(data = data, aes(x = iter, y = phi_se, group = feature, color = order)) +
         geom_hline(yintercept = 0, alpha = 0.5, linetype = "longdash") +
         geom_line() +
-        #geom_point() +
         geom_errorbar(aes(ymin = phi_se - range.se, ymax = phi_se + range.se)) +
         theme + 
         labs(x = "iter", y = "phi (se) not scaled", color = "feature")

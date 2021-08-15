@@ -4,12 +4,14 @@ library(patchwork)
 #- Differences: since we are dealing with multi runs and the Hyper Ellipsoid
 #    1) we plot the average phi
 #    2) for the unceratinty we use the sd instead of the CI
-#    3) we use the average distance from the optimum value instead of the average feature 
-#       value
-#    4) no options to choose the plot (all 4 plots + uncertainty estimates)
-#- this function is used as a faster and more clean way to analyse the results 
-#  of the HyperEllipsoid MBO runs
-#-it should therefore not be used for other purposes
+#    3) we display the average distance from the optimum value instead of the average parameter 
+#       value on the vertical axis
+#    4) no options to choose which plot to display (all 4 plots + uncertainty estimates)
+#- this function is used as a faster and more clean way to analyze the results 
+#  of the HyperEllipsoid
+#-it should therefore not be used for other purposes & should not be used by others (not "exported")
+#- for more details see plotShapleyCT.bar
+#- shapley.mbo is a data frame containing the ShapleyMBO results for multiple BO runs
 plotShapleyHypEllmultiRun.bar.sd = function(shapley.mbo, lambda.mbo, iter.interest) {
   # theme of the plot
   theme = theme_bw() + 
@@ -17,25 +19,27 @@ plotShapleyHypEllmultiRun.bar.sd = function(shapley.mbo, lambda.mbo, iter.intere
           legend.position = "bottom"
     )
   
+  # get the data
   data = shapley.mbo %>% dplyr::select(
     lambda, iter, feature.value, 
     phi_mean, pred.interest_mean, pred.average_mean,
     phi_se, phi_se_scaled, pred.interest_se, pred.average_se,
     phi_cb, pred.interest_cb, pred.average_cb
   ) %>% dplyr::slice(which(lambda == as.character(lambda.mbo) & iter == as.character(iter.interest)))
-  # split the feature value column and compute the distance to optimum value
+  # split the feature value column and compute the distance to optimum value, 
   data = data %>% tidyr::separate(feature.value, into = c("feature", "value"), sep ="=", convert = TRUE)
-  data$value = abs(data$value)
+  data$value = abs(data$value) # because optimum in at 0 --> abs(data$value - 0)
   
-  # compute the average results over the runs
+  # compute the average results (phi, prediction interest and average) over the runs
   avg.data = data %>% group_by(lambda, feature, iter) %>%
     dplyr::summarise(across(c(starts_with("phi"), starts_with("pred."),"value"),mean))
+  # std.dev used as uncertainty of the estimate
   sd.phi = data %>% group_by(lambda, feature, iter) %>%
     dplyr::summarise(across(starts_with("phi"), sd))
   data = dplyr::left_join(avg.data, sd.phi, by = c("lambda", "feature", "iter"), suffix = c(".avg", ".sd"))
   
-  # merge feature and feature value back together
-  data$value = round(data$value, 4)
+  # merge parameter and parameter value back together
+  data$value = round(data$value, 4) # four digits for better visibility
   data = data %>% tidyr::unite(feature, value, col = "feature.value", sep = "=", remove = TRUE)
   data = as.data.frame(data)
   # determine the order of the features
@@ -61,16 +65,16 @@ plotShapleyHypEllmultiRun.bar.sd = function(shapley.mbo, lambda.mbo, iter.intere
   # merge them
   data.sd.long = dplyr::left_join(data.phi.long, data.sd.long, by = c("lambda", "iter", "feature.value", "contribution"))
   
-  # transfrom to long format data including phi_mod column
+  # transform to long format data including phi_mod column
   data.mod.long = dplyr::select(data, iter, feature.value, se = phi_se_scaled.avg, mean = phi_mean.avg, phi_mod = phi_mod.avg) %>%
     tidyr::pivot_longer(cols = c(mean, se), names_to = "contribution", names_ptypes = list(contribution = factor()),
                         values_to = "phi")
-  # replace values of phi_mod & contribution = se, with their original values
+  # replace values of phi_mod where contribution = se with their original values
   # since phi_se_scaled is not affected by this problem (phi_se_scaled is the lower bar)
   data.mod.long[seq(2, nrow(data.mod.long), 2), "phi_mod"] = data.mod.long[seq(2, nrow(data.mod.long), 2), "phi"]
-  #join the data and obtain the final data
+  #join the data and obtain the final data set used for the plot
   data.contr.plot = dplyr::left_join(data.mod.long, data.sd.long, by = c("iter", "feature.value", "contribution", "phi"))
-  # this is a subfunction used to custom the x axis labels, it replaces "x" with expression (theta)
+  # this is a subfunction used to customize the parameter axis labels, it replaces "x" with expression (theta)
   changeXinTheta = function(old.breaks) {
     split = strsplit(old.breaks, "=")
     new.breaks = list()
@@ -84,7 +88,7 @@ plotShapleyHypEllmultiRun.bar.sd = function(shapley.mbo, lambda.mbo, iter.intere
     }
     new.breaks
   }
-  
+  # contribution plot (decomposition plot)
   plot.contr = ggplot(data = data.contr.plot, aes(x = forcats::fct_relevel(feature.value, lev), fill = contribution)) +
     geom_col(aes(y = phi)) +
     geom_errorbar(aes(ymin =  phi_mod - sd, ymax =  phi_mod + sd), width = 0.5) + 
@@ -123,7 +127,8 @@ plotShapleyHypEllmultiRun.bar.sd = function(shapley.mbo, lambda.mbo, iter.intere
     theme +
     labs(x = "", y = "phi (se)",
          title = sprintf("Actual se: %.4f\nAverage se: %.4f",data$pred.interest_se, data$pred.average_se))
-  # define the limits of the plots s.t. all plots have the same scale
+  
+  # define the limits of the plots s.t. all plots have the same range
   all.phi = c(data$phi_cb.avg - data$phi_cb.sd, 
               data$phi_cb.avg + data$phi_cb.sd, 
               data.contr.plot$phi_mod - data.contr.plot$sd, 

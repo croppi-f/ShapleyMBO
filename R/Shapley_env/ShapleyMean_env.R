@@ -1,9 +1,6 @@
 ###################################################### 
-##########       ShapleyMean     #####################
+##########       ShapleyMean_env  ####################
 ######################################################
-#- computes the Shapley Values of the feature for MBO proposal in a given iteration, 
-#  using the model prediction as payout
-#- this is like a standard iml procedure
 ShapleyMean_env = function(model.p,
                            x.interest.s, # explicand, instance to explain 
                            sample.size.s = 100,

@@ -9,10 +9,9 @@ getShapleyRes = function(shapley, type) {
     pred.average = shapley$y.hat.average
    )
   
-  # for the CB we need to extract some additional information to construct phi and phi.var later on
-  # dataDesign: "the Design matrix after intervention" (see #61 on github repo iml/R/InterpretationMethod.R)
-  # qResults: "the quantity of interest from the black box model prediction" 
-  # (see #65 on github repo iml/R/InterpretationMethod.R)
+  # for the CB we need to extract some additional information to construct phi and phi.var later on.
+  # - dataDesign: "the Design matrix after intervention" (see #61 on github repo iml/R/InterpretationMethod.R)
+  # - qResults: "the quantity of interest from the black box model prediction" (see #65 on github repo iml/R/InterpretationMethod.R)
   # in case remove names of qResults
   res = switch(type,
                "simple" = df,
@@ -25,10 +24,11 @@ getShapleyRes = function(shapley, type) {
 }
 
 ###################################################### 
-#########       mergeShapleyMeanSe  ##################
+#########       mergeShapleyRes     ##################
 ######################################################
-#- used to merge the results of Shapley Mean and Shapley Se and to compute than the
-#  actual and average cb
+#- used to merge the results of Shapley Mean and Shapley Se and to compute the
+#  actual and average cb as well as the cb contributions with computePhiCb
+#- this function actually genertaye the result data frame in each iteration
 mergeShapleyRes = function(shapley.mean, shapley.se, lambda, max.mult, sample.size.s) {
   # 1. extract Shapely results 
   res.mean = lapply(shapley.mean, function(x) x[[1]]) %>% dplyr::bind_rows(.id = "iter")
@@ -38,27 +38,27 @@ mergeShapleyRes = function(shapley.mean, shapley.se, lambda, max.mult, sample.si
   res = dplyr::bind_rows(res.mean, res.se, .id = "contribution") %>%
     dplyr::mutate(contribution = factor(contribution, labels=c("mean", "se")))
   
-  # 3. reshape the results to create cb.interest and cb.average
+  # 3. reshape the results to create cb.interest and cb.average and scaled M and SE contributions
   res.wide = tidyr::pivot_wider(res, 
                                 names_from = contribution, 
                                 values_from = c(pred.interest, pred.average, phi, phi.var)) %>%
     dplyr::mutate(
-      phi_se_scaled = -1 * lambda * phi_se, #scaling the sign of SV for the SE
-      phi_mean_scaled = max.mult * phi_mean, # scaling the sign for the mean (needed for max problems, when max.mult = -1)
+      phi_se_scaled = -1 * lambda * phi_se, #scaling SE contributions with -1 * lambda
+      phi_mean_scaled = max.mult * phi_mean, # scaling Mean contributions (needed for max problems, when max.mult = -1)
       pred.interest_cb = max.mult * pred.interest_mean - lambda * pred.interest_se,
       pred.average_cb = max.mult * pred.average_mean - lambda * pred.average_se,
-      #phi_cb = max.mult * phi_mean - lambda * phi_se, # old: now computed with computePhiCbLinear
+      #phi_cb = max.mult * phi_mean - lambda * phi_se, # old version.  now, computed with computePhiCbLinear
     )
   names(res.wide$pred.average_cb) = rep(".prediction", nrow(res.mean))
   
-  # 4. extract qResults to compute phi_cb and phi.var_cb
+  # 4. extract qResults to compute phi_cb and phi.var_cb with computePhiCb
   qR.mean = lapply(shapley.mean, function(x) x[[3]])
   qR.se = lapply(shapley.se, function(x) x[[3]])
   names.mean = lapply(shapley.mean, function(x) x[[2]]) %>% unique() %>% unlist()
   names.se = lapply(shapley.se, function(x) x[[2]]) %>% unique() %>% unlist()
   if(all.equal(names.mean, names.se)) names.dD = names.mean
   
-  # 5. compute the SV of the CB
+  # 5. compute the SV of the CB using computePhiCb
   res.cb = mapply(computePhiCb, qR.mean, qR.se,
     MoreArgs = list(
       names = names.dD,
@@ -77,15 +77,17 @@ mergeShapleyRes = function(shapley.mean, shapley.se, lambda, max.mult, sample.si
 
 
 ###################################################### 
-#########       computePhiCbLinear  ##################
+#########       computePhiCb        ##################
 ######################################################
 #- subfunction of mergeShapleyRes
-#- used to compute the estimate of the Shapley Value of the LCB (phi_cb) and its variance (phi.var_cb)
-#- the main reason for this function is that phi.var_cb can not be computed using the Linearity Axiom,
-#  unlike cb, cb.average or phi_cb
-#- to  compute phi.var_cb we need some additional private methods of the iml::Shapley object (see getShapleyRes type = "detailed")
-#- for more details refer to iml::Shapley on Github # 119  - private method aggregate()
-#- this is actually is slight modification of the exact iml::Shapley computation
+#- this is the heart of the Shapley decomposition, where the CB contributions are
+#  reconstructed using the Lineatiy Axiom
+#- used to compute the Shapley Values of the LCB (phi_cb) and the variance of the estimation (phi.var_cb)
+#- the main reason for this function is to correctly phi.var_cb 
+#- Unlike cb. interest and average. to  compute phi_cb and phi.var_cb we need some 
+#  additional private methods of the iml::Shapley object (see getShapleyRes type = "detailed")
+#- for more details refer to the private method aggregate() in the iml repository R/Shapley.R on Github at line # 119 
+#- computePhiCb is actually an extension of the method aggregate()
 computePhiCb = function(qR.mean, qR.se, names, lambda, max.mult, sample.size.s) {
   
   # mean

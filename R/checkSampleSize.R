@@ -1,21 +1,16 @@
 ################################################################################
 #####################   checkSampleSize   ######################################
 ################################################################################
-#- this function is used to check if the sample size used in ShapleyMBO is sufficiently
-#  high
-#- Idea: the efficiency error (gap) caused by the approximation is used as condition for 
-#  an appropriate sample size. If the gap is smaller than the minimum absolute difference (L1 distance) 
-#  between the Shapley Values (threshold) then the sample size is high enough.
-#- Choice of the threshold: in the most extreme case (worst case scenario) all the gap
-#  is distributed to one feature only, but if the gap is smaller than the 
-#  threshold, then distributing the gap to that feature feature will not change the 
-#  results (at least the order of the results).
-#- the uncertainty of the estimation is taken into considerations with confidence intervals
+#'@description This function is used to check if the sample size used in ShapleyMBO is sufficiently
+#'  high. For more details see Appendix C in the thesis paper.
+#'@param shapley.mbo [\code{data.frame}] \cr
+#'  \code{ShapleyMBO} results for one single iteraions only.
+#'@return A string indicating if the sample for cb, mean and se contribution is high enough.
 
 checkSampleSize = function(shapley.mbo) {
   # repeat the same steps for cb, mean and se: 
   # Cb
-  # compute the contribution payout
+  # compute the payout
   payout.cb = unique(shapley.mbo$pred.interest_cb) - unique(shapley.mbo$pred.average_cb)
   # compute the sum of the sv
   sum.phi.cb = sum(shapley.mbo$phi_cb)

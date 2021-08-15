@@ -1,7 +1,7 @@
 ###################################################### 
 ##########       ShapleyAf       #####################
 ######################################################
-#- computes the Shapley Values of the feature for MBO proposal in a given iteration, 
+#- computes the Shapley Values of the parameters of the MBO proposal in a given iteration, 
 #  using the af as payout
 ShapleyAf = function(res.mbo.p, 
                      iter.p, 
@@ -17,7 +17,7 @@ ShapleyAf = function(res.mbo.p,
   # Pred Models
   sm = res.mbo.p$models[[as.character(iter.p)]]
   af = ctrl$infill.crit$fun
-  # Names (characters)
+  # Strings
   ps.ids = ParamHelpers::getParamIds(ps, repeated = TRUE, with.nr = TRUE)
   y.name.mbo = ctrl$y.name
   infill = ctrl$infill.crit$id
@@ -31,7 +31,7 @@ ShapleyAf = function(res.mbo.p,
   N = 1000 * length(ps.ids)
   data.p = ParamHelpers::generateDesign(n = N, par.set = ps, fun = lhs::randomLHS)
   
-  # 3. compute AF value for the samples
+  # 3. compute AF value for the sampled instances
   data.p$af = af(
     points = data.p,
     models = list(sm),

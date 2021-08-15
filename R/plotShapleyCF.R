@@ -1,8 +1,8 @@
 ######################################################
 #########       plotShapleyCF        #################
 ######################################################
-# this is a subfunction of plotShapleyMBO to dispaly the results
-# of ShapleyCF. CF stands for "contribution FALSE"
+# this is a subfunction of plotShapleyMBO to display the results
+# of ShapleyMBO when contribution = FALSE.
 
 plotShapleyCF = function(data, infill.mbo, type, avg.phi, ci, ci.alpha, sample.size) {
   plot = switch(type,
@@ -24,6 +24,7 @@ plotShapleyCF.line = function(data, infill.mbo, avg.phi, ci, ci.alpha, sample.si
     )
   
   if(avg.phi == TRUE) {
+    #compute the avg contribution
     avg.phi = data %>%
       dplyr::group_by(feature) %>%
       dplyr::summarise(avg.phi = mean(phi))
@@ -39,6 +40,7 @@ plotShapleyCF.line = function(data, infill.mbo, avg.phi, ci, ci.alpha, sample.si
       )
   }
   if(ci == TRUE) {
+    #compute the range of the CI:
     data$phi.var = sqrt(data$phi.var / sample.size)
     data$range = data$phi.var * qt(1 - ci.alpha / 2, sample.size - 1) # we use t distr since var unknown
     
@@ -53,7 +55,7 @@ plotShapleyCF.line = function(data, infill.mbo, avg.phi, ci, ci.alpha, sample.si
       )
   }
   if(ci == FALSE && avg.phi == FALSE) {
-    plot = ggplot(data = data, aes(x = iter, y = phi, group = feature, color = feature)) + #linetype = order
+    plot = ggplot(data = data, aes(x = iter, y = phi, group = feature, color = feature)) +
       geom_hline(yintercept = 0, alpha = 0.5, linetype = "longdash") +
       geom_line() +
       theme + 
@@ -70,13 +72,13 @@ plotShapleyCF.line = function(data, infill.mbo, avg.phi, ci, ci.alpha, sample.si
 ######################################################
 # Bar Plot in single iterations, equivalent to iml::plot(Shapley)
 plotShapleyCF.bar = function(data, infill.mbo, ci, ci.alpha, sample.size) {
-  # for better visualization we round the feature value 
+  # for better visualization we round the feature value to 4 digits
   data = data %>% tidyr::separate(feature.value, into = c("f", "feature.value"), sep ="=", convert = TRUE)
   data$feature.value = round(data$feature.value, 4)
   data = data %>% tidyr::unite(f, feature.value, col = "feature.value", sep = "=", remove = TRUE)
   data = as.data.frame(data)
   
-  # defining the order
+  # defining the order of the parameters
   order = forcats::fct_reorder(data$feature.value, data$phi)
   lev = levels(order)
   

@@ -3,11 +3,14 @@ source("R/ShapleyAf.R")
 source("R/ShapleyMean.R")
 source("R/ShapleySe.R")
 source("R/PredictorAf.R")
+source("R/utils_PredictorAf.R")
 ###################################################### 
 #######     ShapleyMBO_mclapply     ##################
 ######################################################
 #- this is an alternative version of ShapleyMBO which allows
-#  parallel computation. Works only on MacOS and Linux
+#  parallel computation. Works only on MacOS and Linux, not on Windows
+#- for a description of the function see "ShapleyMBO.R"
+#- no.cores: Number of cores to use for the parallel computation. Default is 1.
 ShapleyMBO_mclapply = function(res.mbo,
                                iter.interest = NULL, # explain instance proposed in iter.interest
                                sample.size = 100,
@@ -25,18 +28,18 @@ ShapleyMBO_mclapply = function(res.mbo,
   # Pred Models
   sm = res.mbo$models
   af = ctrl.mbo$infill.crit$fun
-  # Names (characters)
+  # Strings
   ps.ids = ParamHelpers::getParamIds(ps.mbo, repeated = TRUE, with.nr = TRUE)
   y.name.mbo = ctrl.mbo$y.name
   infill.mbo = ctrl.mbo$infill.crit$id
   if(infill.mbo == "cb") cb.lambda = ctrl.mbo$infill.crit$params$cb.lambda
-  # Values
+  # Numeric
   # stored are the stored models in the process, not every iteration has a stored model
   stored = sort(as.integer(names(res.mbo$models)))
   iters.mbo = opdf[nrow(opdf), "dob"] #max(ParamHelpers::getOptPathDOB(op.mbo)),op.mbo = res.mbo$opt.path
   init.size = nrow(res.mbo$final.opt.state$opt.problem$design)
   maximize.mult = if (ctrl.mbo$minimize) 1 else -1 # needed to construct phi(cb) in mergeShapleyRes
-  # Data Frames
+  # Tables
   if(infill.mbo == "cb"){
     props = opdf[which(opdf$dob != 0), c(ps.ids, infill.mbo, "se", "mean"), drop = FALSE]
   } else {
@@ -72,10 +75,14 @@ ShapleyMBO_mclapply = function(res.mbo,
   if(is.null(iter.interest)) stored = stored # if NULL analyze all possible iterations
   if(!(is.null(iter.interest))) stored = sort(stored[iter.interest]) # otherwise only selected ones
   
-  # Linearity axiom can be applied only with the CB
+  # contribution - decomposition can be applied only with the CB
   checkmate::assertLogical(contribution, len = 1)
   if(contribution == TRUE && infill.mbo != "cb") 
     stop("Shapley Value decomposition only available for the Confidence Bound infill")
+  # seed
+  checkmate::assertNumber(seed)
+  # no.cores
+  checkmate::assertNumber(no.cores)
   
   ## Begin of the Computation ##
   if(contribution == FALSE ) {
@@ -84,7 +91,7 @@ ShapleyMBO_mclapply = function(res.mbo,
       function(x) {
         set.seed(seed)
         ShapleyAf(
-          res.mbo.p = res.mbo, # the results of the mbo run are passed because for each iter we need to create a PredictorAf object
+          res.mbo.p = res.mbo, # the results of the mbo run are required because for each iter we need to create the PredictorAf object
           iter.p = x,
           x.interest.s = props[x, c(ps.ids, infill.mbo), drop = FALSE],
           sample.size.s = sample.size
@@ -97,7 +104,7 @@ ShapleyMBO_mclapply = function(res.mbo,
   }
   
   if(contribution == TRUE && infill.mbo == "cb") {
-    # MEAN #
+    # MEAN contributions
     res.mean = parallel::mclapply(
       stored,
       function(x) {
@@ -114,7 +121,7 @@ ShapleyMBO_mclapply = function(res.mbo,
     # each list element is named with the corresponding iteration
     names(res.mean) = stored
     
-    # SE #
+    # SE contributions
     # repeat the same procedure
     res.se = parallel::mclapply(
       stored,
@@ -132,7 +139,7 @@ ShapleyMBO_mclapply = function(res.mbo,
     # each list element is named with the corresponding iteration
     names(res.se) = stored
     
-    # merge the results together and compute the SV of the CB
+    # merge the Mean and Se results together and compute the SV of the CB
     res = mergeShapleyRes(res.mean, res.se, 
                          lambda = cb.lambda,
                          max.mult = maximize.mult, 
@@ -143,6 +150,3 @@ ShapleyMBO_mclapply = function(res.mbo,
   
   return(res)
 }
-
-################ Evaluations ######
-#s = ShapleyMBO_mclapply(mbo_phoneme_lambda_1, iter.interest = 1:5, contribution = TRUE, no.cores = 5)

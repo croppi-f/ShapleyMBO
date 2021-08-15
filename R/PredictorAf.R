@@ -1,18 +1,14 @@
 source("R/utils_PredictorAf.R")
-
-
 #' @title Predictor object that contains the Acquisition Function of a MBO process
 #'
 #' @description
-#' `PredictorAf` is a extension / modification of `Predictor`(inherits its behavior). It holds 
-#' a `mlr` model (the surrogate model), the AF of a BO process and the candidate points to analyse.
-#' It can be used to understand the behavior of the Af within a MBO process, anlysed with 
-#' `mlrMBO` using the tools provided in the `iml` package. So far, PreditorAf works for the seven built in SingleObjective AF of mlrMBO.
+#' `PredictorAf` is a extension / modification of iml package `Predictor`(inherits its behavior). It holds 
+#' a `mlr` model (the surrogate model), the AF of a BO process and the candidate points to analyze.  
+#' So far, PredictorAf works for the seven built in SingleObjective AF of mlrMBO.
 #' PredictorAf is built on iml version ‘0.10.0’.Due to inherit, if latest versions of iml are released PredictorAf might generate errors. 
 #'
 #' @details
-#' -`PredictorAf` has been created for regression tasks. For classfication taks,
-#' we do not know how & if it works at all.
+#' -`PredictorAf` has been created for regression tasks. For classification tasks it is not tested.
 #' - `PredictorAf` class is created in a more general way, in order to be eventually compatible with other iml tools.
 #' -Please use it only in combination with the `mlrMBO` package.
 #' @name PredictorAf
@@ -25,8 +21,7 @@ PredictorAf = R6::R6Class("PredictorAf",
     #' A machine learning model from `mlr` package, used as surrogate model in the 
     #' MBO process, and needed in order to measure the AF. 
     #' @param data [data.frame]\cr
-    #' The data for which we want to measure the Af, namely the candidate points
-    #' within an iteration of the MBO process. 
+    #' The data for which we want to measure the Af.
     #' @param y `character(1)` | [numeric] | [factor]\cr 
     #' The target vector or (preferably) the name of the target column (the id of the infill criterion) in the `data` argument.
     #' PredictorAf tries to infer the target automatically if not given. 
