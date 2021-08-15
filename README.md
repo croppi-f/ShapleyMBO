@@ -1,9 +1,3 @@
----
-output:
-  pdf_document: default
-  html_document: default
-  word_document: default
----
 # ShapleyMBO
 This repository contains all the relevant materials of my master's thesis project **Explaining Sequential Model Based Optimization** and is subdivided into following folders **R**, **dissertation** and **tests**.
 
