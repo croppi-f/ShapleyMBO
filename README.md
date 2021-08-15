@@ -4,7 +4,7 @@ output:
   html_document: default
   word_document: default
 ---
-# ShapleyMBO {-}
+# ShapleyMBO
 This repository contains all the relevant materials of my master's thesis project **Explaining Sequential Model Based Optimization** and is subdivided into following folders **R**, **dissertation** and **tests**.
 
 1. **R**: contains all the functions used. The most important and "exported" functions are `ShapleyMBO`, `ShapleyMBO_mclapply`, `plotShapleyMBO` and `checkSampleSize`. This are ready to use for other users.
