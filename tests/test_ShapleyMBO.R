@@ -1,6 +1,8 @@
 ######################### ShapleyMBO ########################################
 ######################### TEST ##############################################
 library(testthat)
+library(mlrMBO)
+library(iml)
 
 # objective function
 set.seed(1)
