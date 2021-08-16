@@ -3,7 +3,7 @@ library(patchwork)
 ###########################################################
 ####   Application Example - MLP Phoneme  - Evaluation ####
 ###########################################################
-mbo = readRDS(paste0(getwd(),"/analysis/mlp_phoneme/mbo_phoneme_lambda_1.rds"))
+mbo = readRDS(paste0(getwd(),"/dissertation/analysis/mlp/mbo_run_data/mbo_phoneme_lambda_1.rds"))
 opdf = as.data.frame(mbo$opt.path)
 path = opdf[which(opdf$dob > 0), ]
 rownames(path) = path$dob
@@ -73,7 +73,7 @@ summary.bo.mlp = plot.y / plot.mean / plot.se / plot.cb
 ################################################################################
 # colors: "#F8766D" "#53B400" "#A58AFF" "#00C094" "#FB61D7" "#C49A00" "#00B6EB"
 # load the results
-shapley = readRDS(paste0(getwd(), "/analysis/mlp_phoneme/shapley_phoneme_2e4.rds"))
+shapley = readRDS(paste0(getwd(), "/dissertation/analysis/mlp/shapley_run_data/shapley_phoneme_2e4.rds"))
 # take only the results and not the time required
 shapley = shapley[[1]]
 # define the order of the feature

@@ -1,9 +1,11 @@
+library(mlrMBO)
 ############################################
 ###    Motivating Example             ######
 ############################################
 # univariate
 # set the seed for reproducibility 
 set.seed(1)
+
 obj.fun = makeCosineMixtureFunction(1)
 obj.fun = convertToMinimization(obj.fun)
 des = generateDesign(n = 4, par.set = getParamSet(obj.fun), fun = lhs::randomLHS)

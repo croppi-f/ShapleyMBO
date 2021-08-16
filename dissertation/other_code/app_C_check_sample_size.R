@@ -1,4 +1,4 @@
-# example for checkSampleSize
+# example for checkSampleSize (see figure 16)
 df = data.frame(
   par = rep(c("x1", "x2"),2),
   estimate = rep(c(3,2),2),

@@ -1,6 +1,8 @@
+library(smoof)
 ###############################
 ############# Bivariate Noisy Hyper Ellipsoid
 ###############################
+#- here  we want to show how a possible noisy Hyp Ell can look like (figure 2 in thesis)
 set.seed(1)
 # approximate the sd of the function
 noise.free.fun = makeHyperEllipsoidFunction(dimensions = 2L)
@@ -30,11 +32,11 @@ noisyHypEll2d = makeSingleObjectiveFunction(
 
 plot(noisyHypEll2d, render.contours = TRUE, render.levels = TRUE)
 
-
-# what is the 4d noise free hyp ell change if we replace xsimilar parameter with the average value?
+#- this example is used for the expectation on the mean contribution (footnote in section 6.1)
+# what is the 4d noise free hyp ell change if we replace a similar parameter with the average distance value from its optimum?
 # we omit using noise for  the example
+#- note that higher pars more distant from their optimum & nevertheless have a bigger impact.
 hypEll = makeHyperEllipsoidFunction(dimensions = 4L)
-#lambda1
 y = hypEll(c(0.05, 0.15, 0.25, 0.35))
 y.replaced= c(
   y.no1 = hypEll(c(2.56, 0.15, 0.25, 0.35)),

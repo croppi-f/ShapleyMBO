@@ -18,11 +18,6 @@ V3 = runif(n, 0, 1)
 X = as.data.frame(cbind(V1, V2, V3))
 X$y = generateY(X = X)
 
-# rows = sort(sample(1:10000, 8000))
-# diff = setdiff(1:10000, rows)
-# train_set = X[rows, ]
-# test_set = X[diff, ]
-
 # define the learning task
 task = makeRegrTask(data = X, target = "y")
 # define the learner
@@ -33,14 +28,12 @@ mod = mlr::train(lrn, task)
 ######################################################  
 ############## Shapley Value        ##################
 ######################################################
-# instance to explain, which correspond to the target configuration
+# instance to explain, which correspond to the target configuration of AA
 target = as.data.frame(t(c(0,0,0)))
-#target$pred = predict(mod, newdata = target)$data$response
 pred.target = predict(mod, newdata = target)$data$response
 
 samples = X
 samples$y = NULL
-
 
 # bind explicand and samples
 X.shapley = rbind(target, samples, make.row.names = FALSE)
@@ -57,26 +50,27 @@ S = Shapley$new(
   x.interest = X.shapley[1,],
   sample.size = 1000
 )
-
+# payput is the quantity to distribute
 payout.shapley = S$y.hat.interest - S$y.hat.average
 names(payout.shapley) = NULL
 
 shapley = S$results[, 1:2]
 shapley$rel.imp = shapley$phi / payout.shapley
 # note that the sum of the relative importance do not sum up to 1. This problem
-# does not change the results and is problably caused by the approximation error
+# does not change the results and is caused by the approximation error
 
 ######################################################
 ############## Ablation Analysis #####################
 ###################################################### 
-#- this time we try to find a instance which has similar values for V2 and V3 and 
+#- here we try to find a instance which has similar values for V2 and V3 and 
 #  and the same time a similar prediction to the average prediction in order to have
-#  similar payputs for both shapley and ablation
-source = as.data.frame(t(c(0.5,0.5,0.5)))
+#  similar payouts for both shapley and ablation
+source = as.data.frame(t(c(0.5,0.5,0.5))) # 0.5 is the expectation of the variable
 pred.source = predict(mod, newdata = source)$data$response
 # payout ablation
 payout.ablation = pred.source - pred.target
 ################ round one #######################
+#-the procedure in each round is always the same: flip the prameter with the biggest gain
 # flip V1
 r1.v1 = source
 r1.v1[["V1"]] = target[["V1"]]
