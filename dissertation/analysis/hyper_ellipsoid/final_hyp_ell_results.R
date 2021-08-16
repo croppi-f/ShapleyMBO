@@ -1,5 +1,8 @@
 library(patchwork)
 library(tidyverse)
+################################################################################
+#- in this script we present of the Hyp-Ell analysis. See section 7.1 in the paper
+################################################################################
 # common layers for the plots and additional stuff
 theme = theme_bw() + 
   theme(text = element_text(size = 15),
@@ -13,15 +16,15 @@ par.labels = c(
   expression(theta[3]),
   expression(theta[4])
 )
-
 ################################################################################
 ###############         MBO results           ##################################
 ################################################################################
-opdf_lambda_all = readRDS(paste0(getwd(),"/analysis/hyper_ellipsoid/opdf_lambda_all.rds"))
+opdf_lambda_all = readRDS(paste0(getwd(),"/dissertation/analysis/hyper_ellipsoid/mbo_runs_data/opdf_lambda_all.rds"))
 
-#1. prediction paths 
+#1. prediction paths (y, mean, se and cb) 
 #  For each iter and lambda we compute the average
-#  over the 30 runs for: y, mean, se and cb
+#  over the 30 runs
+
 # path is the opdf with dob > 0 
 path = dplyr::select(opdf_lambda_all, c(1,6,iter = dob, 11, 16, 17, 18)) %>%
   dplyr::slice(which(iter > 0)) %>% dplyr::group_by(iter, lambda) %>% 
@@ -55,6 +58,7 @@ path = dplyr::select(opdf_lambda_all, c(1,6,iter = dob, 11, 16, 17, 18)) %>%
     theme(legend.position = "none")
   
   }
+# figure 3 
 plot.summary.bo = (plot.y + plot.y.zoom) / 
   (plot.mean + plot.mean.zoom) / 
   (plot.se + plot.se.zoom) /
@@ -62,21 +66,20 @@ plot.summary.bo = (plot.y + plot.y.zoom) /
 
 
 # 2. paths of the configurations 
-#- dist.to.opt computes the average distance of the proposal to their optimum value,
-#  which is 0
+#- dist.to.opt computes the average (over 30 BO runs) distance of the proposal to their optimum value at 0
 # here are the single plots, skip and see directly plot.summary.props
 {
   
   dist.to.opt = opdf_lambda_all %>% dplyr::select(iter = dob, lambda, x1,x2,x3,x4) %>%
     dplyr::mutate(x1 = abs(x1), x2 = abs(x2), x3 = abs(x3), x4 = abs(x4)) %>% 
-    dplyr::mutate(id = rep(c(1:16, rep(17, 64)), 60)) %>% 
+    dplyr::mutate(id = rep(c(1:16, rep(17, 64)), 60)) %>% # used to numerate each initial design instance in order to plot the init des in the par plot
     dplyr::group_by(iter, lambda, id) %>% dplyr::summarise(x1 = mean(x1), x2 = mean(x2), x3 = mean(x3), x4 = mean(x4))
   
   par.plot.props = GGally::ggparcoord(
     dist.to.opt, 
     4:7, 
     groupColumn = 1,
-    scale = "globalminmax"
+    scale = "globalminmax" # no scaling required b/c pars have same domain
   ) +
     hline +
     scale_color_viridis_c() +
@@ -84,7 +87,7 @@ plot.summary.bo = (plot.y + plot.y.zoom) /
     labs(y = "distance to optimum", x = "") +
     facet_grid(cols = vars(lambda)) +
     theme
-  
+  # dist.to.opt2 is similar to dist.to.opt but it does not include the init des
   dist.to.opt2 = opdf_lambda_all %>% dplyr::select(iter = dob, lambda, x1,x2,x3,x4) %>%
     dplyr::slice(which(iter >0)) %>% 
     dplyr::mutate(x1 = abs(x1), x2 = abs(x2), x3 = abs(x3), x4 = abs(x4)) %>% 
@@ -92,6 +95,7 @@ plot.summary.bo = (plot.y + plot.y.zoom) /
     tidyr::pivot_longer(cols = c(x1, x2, x3, x4), names_to = "feature") 
   dist.to.opt2$feature = factor(dist.to.opt2$feature, labels = c("theta[1]", "theta[2]", "theta[3]", "theta[4]"))
   
+  #plot.props.lw not used in the thesis
   plot.props.lw = ggplot(dist.to.opt2, aes(x = iter, y = value, color = feature)) +
     hline +
     geom_line() + 
@@ -107,10 +111,12 @@ plot.summary.bo = (plot.y + plot.y.zoom) /
     labs(x = "iter", y = "distance to optimum") + 
     theme
   }
+# figure 4
 plot.summary.props = plot.props.fw / par.plot.props +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "i") & 
   theme(legend.position = "bottom")
+# not used in the thesis
 plot.summary.props2 = plot.props.fw / (plot.props.lw / par.plot.props) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "i") & 
@@ -120,9 +126,8 @@ plot.summary.props2 = plot.props.fw / (plot.props.lw / par.plot.props) +
 ###############   Shapley results             ##################################
 ################################################################################
 # load the results
-S = readRDS(paste0(getwd(),"/analysis/hyper_ellipsoid/shapley1e3.rds"))
-# compute the average contribution and std.dev for each feature, lambda and iter
-# average 
+S = readRDS(paste0(getwd(),"/dissertation/analysis/hyper_ellipsoid/shapley_runs_data/shapley1e3.rds"))
+# compute the average contribution grouping with feature, lambda and iter
 avg.shapley = S %>% dplyr::select(iter, feature, lambda, starts_with("phi_")) %>%
   dplyr::group_by(iter, feature,lambda) %>%
   dplyr::summarise_all(.funs = mean)
@@ -130,32 +135,32 @@ avg.shapley = S %>% dplyr::select(iter, feature, lambda, starts_with("phi_")) %>
 avg.shapley.long = avg.shapley %>% dplyr::select(lambda, iter, feature, cb = phi_cb, mean = phi_mean, se = phi_se_scaled) %>%
   tidyr::pivot_longer(cols = c(mean, se, cb), names_to = "contribution", names_ptypes = list(contribution = factor()), values_to = "phi.avg")
 
-# stad.dev
+# compute the std.dev. of the contributions grouping with feature, lambda and iter (used as uncertainty of the estimate)
 sd.shapley = S %>% dplyr::select(iter, feature, lambda, starts_with("phi_")) %>%
   dplyr::group_by(iter, feature,lambda) %>%
   dplyr::summarise_all(.funs = sd)
+# pivot to longer format 
 sd.shapley.long = sd.shapley %>% dplyr::select(lambda, iter, feature, cb = phi_cb, mean = phi_mean, se = phi_se_scaled) %>%
   tidyr::pivot_longer(cols = c(mean, se, cb), names_to = "contribution", names_ptypes = list(contribution = factor()), values_to = "phi.sd")
-
-#merge the data and use shapley for visualizations 
-# feature is transformed in order to display theta symbol in the plots
+#merge the data
 shapley = dplyr::left_join(avg.shapley, sd.shapley, by = c("iter", "feature", "lambda"), suffix = c(".avg", ".sd"))
+# feature is transformed in order to display theta symbol in the plots
 shapley$feature = factor(shapley$feature, labels = c("theta[1]", "theta[2]", "theta[3]", "theta[4]"))
-# pivot to longer format 
+# merge long format of data
 shapley.long = dplyr::left_join(avg.shapley.long, sd.shapley.long, by = c("iter", "feature", "lambda", "contribution"))
 shapley.long$feature = factor(shapley.long$feature, labels = c("theta[1]", "theta[2]", "theta[3]", "theta[4]"))
 
 ################################################################################
 ###############   1. Summary table                    ##########################
 ################################################################################
-#- here we provide a summary table of all the contributions over the entire path
+#- here we provide a summary table of all the contributions over the entire optimization
 contr = shapley.long %>% dplyr::group_by(lambda, feature, contribution) %>% 
   dplyr::summarise(phi = mean(phi.avg), sd = mean(phi.sd))
 table.contr = tidyr::pivot_wider(contr, id_cols = c("lambda", "feature"), names_from = "contribution", values_from = c("phi", "sd")) %>%
   dplyr::select(1,2, 5,8, 3,6, 4,7)
 table.contr[,3:8] = round(table.contr[,3:8], 2)
 
-#- comparison l10 contribution first 10 and final 10 iterations
+#- l10 contribution in the first 10 and final 10 iterations
 contr.l10 = shapley.long %>% dplyr::slice(which(lambda == "10")) %>% 
   dplyr::select(iter, lambda, feature, contribution, phi.avg, phi.sd) %>% 
   dplyr::slice(which((iter %in% as.character(c(1:10, 55:64))))) %>% 
@@ -165,10 +170,11 @@ contr.l10 = shapley.long %>% dplyr::slice(which(lambda == "10")) %>%
 table.contr.l10 = tidyr::pivot_wider(contr.l10, id_cols = c("feature", "interval"), names_from = "contribution", values_from = c("phi", "sd")) %>%
   dplyr::select(1,2, 5,8, 3,6, 4,7)
 table.contr.l10[,3:8] = round(table.contr.l10[,3:8], 2)  
+
 ################################################################################
 ###############   2. Bar Plots                        ##########################
 ################################################################################
-source("R/plotShapleyHypEllmultiRun.bar.sd.R")
+source("R/custom_function_hyp_ell/plotShapleyHypEllmultiRun.bar.sd.R")
 #-here we want the iteration with the most similar proposed configurations between 
 # l1 and l10
 #-the goal is to assess if there any differences in the contributions between the "same" 
@@ -181,7 +187,7 @@ source("R/plotShapleyHypEllmultiRun.bar.sd.R")
     dplyr::mutate(x1 = abs(x1), x2 = abs(x2), x3 = abs(x3), x4 = abs(x4)) %>% 
     dplyr::group_by(iter, lambda) %>% dplyr::summarise(x1 = mean(x1), x2 = mean(x2), x3 = mean(x3), x4 = mean(x4)) %>% 
     dplyr::select(iter, x1, x2, x3, x4)
-  # compute the L2 norm between points
+  # compute the L2 norm between proposals of the same iteration but different lambda
   L2.norm = list()
   for(i in 1:64) {
     data = data.L2.norm[which(data.L2.norm$iter == i), ]
@@ -204,23 +210,24 @@ bar59 = (bar59.l1[[1]] + bar59.l1[[2]]) /
   scale_y_continuous(limits = c(-45, 21))
 
 #summary tables for iter 59
-#prepare the data (named shapley59)
+#prepare the data (named shapley59): average contribution, relative importance, std.dev of contributions
 {
-  # average contribution
+  # average contribution (over 30 runs)
   shapley59 = S %>% dplyr::slice(which(iter == "59")) %>% dplyr::select(
     lambda, feature, phi_mean, pred.interest_mean, pred.average_mean,
     phi_se_scaled, pred.interest_se, pred.average_se,
     phi_cb, pred.interest_cb, pred.average_cb
   )  %>% group_by(lambda, feature) %>%
     dplyr::summarise(across(c(starts_with("phi"), starts_with("pred")), mean))
+  # computing the relative importance (= contr / payout) of the pars for cb, m, and se
   shapley59$weight.phi_cb = round(abs(shapley59$phi_cb / (shapley59$pred.interest_cb - shapley59$pred.average_cb)), 4)
   shapley59$weight.phi_mean = round(abs(shapley59$phi_mean / (shapley59$pred.interest_mean - shapley59$pred.average_mean)), 4)
   shapley59$weight.phi_se = ifelse(
-    shapley59$lambda == "1",
+    shapley59$lambda == "1", # for lambda = 10 we have to scale the payout
     round(abs(shapley59$phi_se_scaled / (shapley59$pred.interest_se - shapley59$pred.average_se)), 4),
     round(abs(shapley59$phi_se_scaled / (10 * shapley59$pred.interest_se - 10 * shapley59$pred.average_se)), 4)
   )
-  # stad.dev
+  # std.dev. of the contributions
   shapley59.sd = S %>% dplyr::slice(which(iter == "59")) %>% dplyr::select(
     lambda, feature, phi_mean.sd = phi_mean, phi_se_scaled.sd = phi_se_scaled, phi_cb.sd = phi_cb
   )  %>% group_by(lambda, feature) %>%
@@ -240,18 +247,24 @@ table59.phi = round(
   ),
   2
 )
-  
-# exploration factor: how much have the the dims explored until iter 58
-#- prepare data: with and without init design we compute the std.dev of the config
-# values as a measure of exploretaion
+################################################################################
+###############   3. Exploration factor               ##########################
+################################################################################
+# exploration factor: how much have the dims been explored until iter 58. We use 
+# the std.dev as an exploration factor of the dimensions
+
+#- prepare data: compute the std.dev of the configurations once with and once without the init des
 {
+  # init des only (no proposals)
   explored.init.des = dist.to.opt %>% dplyr::slice(which(id <= 16)) %>% dplyr::select(-id)%>% 
     tidyr::pivot_longer(cols = c(x1, x2, x3, x4), names_to = "feature") 
   explored.init.des $feature = factor(explored.init.des $feature, labels = c("theta[1]", "theta[2]", "theta[3]", "theta[4]"))
+  # proposals + init des
   explored.with.id = dist.to.opt2 %>% dplyr::slice(which(iter <= 58)) %>%
-    dplyr::bind_rows(explored.init.des) %>% 
+    dplyr::bind_rows(explored.init.des) %>% # bind the data
     dplyr::group_by(feature, lambda) %>% 
     dplyr::summarise(sd = sd(value)) %>% tidyr::pivot_wider(names_from = feature, values_from = sd)
+  # proposals only (no init des)
   explored.no.id = dist.to.opt2 %>% dplyr::slice(which(iter <= 58)) %>%
     dplyr::group_by(feature, lambda) %>% 
     dplyr::summarise(sd = sd(value)) %>% tidyr::pivot_wider(names_from = feature, values_from = sd) 
@@ -262,11 +275,12 @@ explored[,3:6] = round(explored[,3:6], 2)
 
 
 ################################################################################
-###############   3. Desirability paths               ##########################
+###############   4. Desirability paths               ##########################
 ################################################################################
-#-mid.<bla> is used to measure the average contributions (over the entire path) of the pars
-# in the lambda1 scenario and display it in the lambda10 plot for a comparison
+#-mid.<bla> is used to display in the lambda 10 plot the average contributions (over the entire path) of the pars
+# in the lambda1 scenario (black dot dashed line in figure 6)
 {
+  # cb
   mid.cb.l1 = geom_hline(
     data = cbind(
       contr[which(contr$contribution == "cb" & contr$lambda == "1"), c(2,4)],
@@ -275,6 +289,7 @@ explored[,3:6] = round(explored[,3:6], 2)
     mapping = aes(group = feature, yintercept = phi),
     linetype = "dotdash"
   )
+  #mean
   mid.m.l1 = geom_hline(
     data = cbind(
       contr[which(contr$contribution == "mean" & contr$lambda == "1"), c(2,4)],
@@ -283,6 +298,7 @@ explored[,3:6] = round(explored[,3:6], 2)
     mapping = aes(group = feature, yintercept = phi),
     linetype = "dotdash"
   )
+  #se
   mid.se.l1 = geom_hline(
     data = cbind(
       contr[which(contr$contribution == "se" & contr$lambda == "1"), c(2,4)],
@@ -292,7 +308,7 @@ explored[,3:6] = round(explored[,3:6], 2)
     linetype = "dotdash"
   )
 }
-# overall desirability: phi(cb)
+# figure 6a: overall desirability: phi(cb)
 phi.cb.path = ggplot(data = shapley, aes(x = as.numeric(iter), y = phi_cb.avg)) +
   hline +
   geom_line(size = 0.75, color = "#999999") +
@@ -303,7 +319,7 @@ phi.cb.path = ggplot(data = shapley, aes(x = as.numeric(iter), y = phi_cb.avg)) 
   facet_grid(cols = vars(feature), rows = vars(lambda), labeller = label_parsed) +
   theme
 
-# explore-exploit trade-off (phi_mean and phi_se paths)
+# figure 6b: explore-exploit trade-off (phi_mean and phi_se paths)
 eeto.path = ggplot(data = shapley.long[which(shapley.long$contribution != "cb"), ], aes(x = as.numeric(iter), y = phi.avg, color = contribution)) +
   hline +
   geom_line(size = 0.75) +
@@ -314,11 +330,11 @@ eeto.path = ggplot(data = shapley.long[which(shapley.long$contribution != "cb"),
   facet_grid(cols = vars(feature), rows = vars(lambda), labeller = label_parsed) +
   theme
 
-#-here we investigate further the results of the mean and se paths
-#-we take into consideration the first 10 iters of the process
-#1. display the same parallel plot as above but highlight the first 10 iters 
+#- here we investigate further the results of the mean and se paths in the initial 10 iterations
+#1. display the same parallel plot as par.plot.props but highlight the first 10 iters 
 #  (notice decreasing trend --> lower pars more explored in initial iters and this
 #   why their se contr increase in the beginning)
+# figure 7
 par.plot.props.10dob = GGally::ggparcoord(
   dist.to.opt[which(dist.to.opt$lambda == "10"), ], 
   4:7, 
@@ -336,7 +352,7 @@ par.plot.props.10dob = GGally::ggparcoord(
 hist.l10 = opdf_lambda_all[which(opdf_lambda_all$dob > 0 & opdf_lambda_all$dob <= 10 & opdf_lambda_all$lambda == "10"), c(2:5, 7)] %>% 
   tidyr::pivot_longer(1:4, names_to = "feature")
 hist.l10$feature = factor(hist.l10$feature, labels = c("theta[1]", "theta[2]", "theta[3]", "theta[4]"))
-
+# figure 8
 plot.hist.l10 = ggplot(hist.l10, aes(x = value), fill = "#999999") +
   geom_histogram(bins = 15, color = "black") +
   facet_grid(cols = vars(feature), labeller = label_parsed) +
