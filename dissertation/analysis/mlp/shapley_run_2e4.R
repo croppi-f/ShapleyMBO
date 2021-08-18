@@ -12,18 +12,18 @@
 
 
 # mbo results
-mbo = readRDS(paste0(getwd(),"/analysis/mlp_phoneme/mbo_phoneme_lambda_1.rds"))
+mbo = readRDS(paste0(getwd(),"/dissertation/analysis/mlp/mbo_run_data/mbo_phoneme_lambda_1.rds"))
 #find the iter of the best y (it could be that the best y is the initial design)
 opdf = as.data.frame(mbo$opt.path)
 # best predicted proposal 
 sm113 = mbo$models$`113`
-des = opdf[which(opdf$dob > 0), 1:7] # select only the proposals
-des$mean = predict(sm113, newdata = des)$data$response
+des = opdf[which(opdf$dob > 0), 1:7] # select only the HP values
+des$mean = predict(sm113, newdata = des)$data$response # predict the error of the proposals
 best.props = which.min(des$mean) # 95L --> used as iter.interest in the benchmark experiment
 
 
 ### RESULTS ###
-# comparing the results of the same explanation with different sample size
+# comparing the results of the same explanation with different sample sizes
 size.1e2 = ShapleyMBO(res.mbo = mbo, iter.interest = 95, sample.size = 100, contribution = TRUE)
 check.1e2 = checkSampleSize(size.1e2)
 size.1e3 = ShapleyMBO(res.mbo = mbo, iter.interest = 95, sample.size = 1000, contribution = TRUE)
@@ -37,7 +37,7 @@ check.15e3 = checkSampleSize(size.15e3)
 size.2e4 = ShapleyMBO(res.mbo = mbo, iter.interest = 95, sample.size = 20000, contribution = TRUE)
 check.2e4 = checkSampleSize(size.2e4)
 #--> sample size 2e4 is the only one for which each efficiency gap (cb, mean, se) 
-#    is small enough. We therefore use 2e4 to explain both iter 95 and desirability path
+#    is small enough. We therefore use 2e4 to explain both iter 95 and desirability paths
 
 ### TIME ###
 # comparing the execution time of the same explanation with different sample size
@@ -50,7 +50,8 @@ time.best.mean = rbenchmark::benchmark(
   size.2e4 = ShapleyMBO(res.mbo = mbo, iter.interest = 95, sample.size = 20000, contribution = TRUE),
   replications = 1
 )
-# storing the results
+# storing the results: for each sample size the shapley results and the output of checkSampleSize
+# and the time required for the computation
 perf.shapley.mlp = list(
   "1e2" = list(shapley = size.1e2, sample.size = check.1e2),
   "1e3" = list(shapley = size.1e3, sample.size = check.1e3),
@@ -72,7 +73,8 @@ saveRDS(perf.shapley.mlp, "perf_shapley_mlp.rds")
 #- here we apply ShapleyMBO_mclapply (parallel version of ShapleyMBO) on the mbo 
 #  results of the phoneme data set
 #- sample.size = 20000
-#- iter.interest = NULL (all iterations), seed = 1 (default)
+#- iter.interest = NULL (all iterations)
+#- seed = 1 (default)
 start = Sys.time()
 shapley = ShapleyMBO_mclapply(mbo, sample.size = 20000, contribution = TRUE, no.cores = 4)
 end = Sys.time()

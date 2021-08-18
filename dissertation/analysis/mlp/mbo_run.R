@@ -17,7 +17,7 @@ ps = makeParamSet(
 
 # Objective Function
 # read the file, where the EPM is stored
-surr = readRDS(paste0(getwd(),"/analysis/mlp_phoneme/surrogate.rds"))
+surr = readRDS(paste0(getwd(),"/dissertation/analysis/mlp/mbo_run_data/surrogate.rds"))
 # EPMs - used as a surrogate target function (surr.val) and to evaluate the configuration
 # on the test data (surr.test)
 surr.val = surr$result[[1]][["model_val_balanced_acc"]][[1]]
@@ -45,7 +45,7 @@ des = generateDesign(n = size, par.set = ps, fun = lhs::maximinLHS)
 max.evals = 20 * getNumberOfParameters(obj.fun) #20d
 dob = max.evals - size
 ctrl = makeMBOControl(store.model.at = 1:(dob + 1))# store every surrogate model
-ctrl = setMBOControlInfill(ctrl, crit = makeMBOInfillCritCB(cb.lambda = 1), opt = "focussearch")
+ctrl = setMBOControlInfill(ctrl, crit = makeMBOInfillCritCB(cb.lambda = 1), opt = "focussearch") #cb with lambda = 1
 ctrl = setMBOControlTermination(ctrl, max.evals = max.evals)
 
 # run the optimization problem
